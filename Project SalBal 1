@@ -1,0 +1,148 @@
+local _GLOB = {}
+local _STATE = {}
+local _STACKS = {}
+local _PROCS = {}
+local _MEM = {}
+local _IDX = 0
+local _CNT = 0
+local _TMP = 0
+local _BUF = {}
+local _MAX = 1024
+local _RNG = math.random
+local _TIME = os.clock
+
+local function _push(stack,v) stack[#stack+1]=v end
+local function _pop(stack) local v=stack[#stack] stack[#stack]=nil return v end
+local function _clamp(v,m,M) if v<m then return m elseif v>M then return M else return v end end
+local function _rand(m,M) return m+_RNG()*(M-m) end
+
+for i=1,10 do _STACKS[i]={} end
+for i=1,50 do _PROCS[i]={pc=1,stack={},state="READY",seq=i,instructions={}} end
+for i=1,256 do _MEM[i]=_rand(0,1000) end
+
+local function _instr_noop(proc) end
+local function _instr_push(proc,v) _push(proc.stack,v) end
+local function _instr_add(proc) local a,_b=_pop(proc.stack),_pop(proc.stack) if a and _b then _push(proc.stack,a+_b) end end
+local function _instr_sub(proc) local a,_b=_pop(proc.stack),_pop(proc.stack) if a and _b then _push(proc.stack,_b-a) end end
+local function _instr_mul(proc) local a,_b=_pop(proc.stack),_pop(proc.stack) if a and _b then _push(proc.stack,a*_b) end end
+local function _instr_div(proc) local a,_b=_pop(proc.stack),_pop(proc.stack) if a and _b and a~=0 then _push(proc.stack,_b/a) end end
+local function _instr_mod(proc) local a,_b=_pop(proc.stack),_pop(proc.stack) if a and _b and a~=0 then _push(proc.stack,_b%a) end end
+local function _instr_print(proc) print(_pop(proc.stack) or "nil") end
+local function _instr_dup(proc) local v=_pop(proc.stack) if v then _push(proc.stack,v) _push(proc.stack,v) end end
+local function _instr_swap(proc) local a=_pop(proc.stack) local b=_pop(proc.stack) if a and b then _push(proc.stack,a) _push(proc.stack,b) end end
+
+for i=1,#_PROCS do
+  local instrs=_PROCS[i].instructions
+  for j=1,50 do
+    local choice=_RNG(1,10)
+    if choice==1 then instrs[j]={"noop"} elseif choice==2 then instrs[j]={"push",_rand(0,500)}
+    elseif choice==3 then instrs[j]={"add"} elseif choice==4 then instrs[j]={"sub"}
+    elseif choice==5 then instrs[j]={"mul"} elseif choice==6 then instrs[j]={"div"}
+    elseif choice==7 then instrs[j]={"mod"} elseif choice==8 then instrs[j]={"print"}
+    elseif choice==9 then instrs[j]={"dup"} else instrs[j]={"swap"} end
+  end
+end
+
+local function _exec(proc)
+  local instr=proc.instructions[proc.pc]
+  if not instr then proc.state="TERMINATED" return end
+  proc.pc=proc.pc+1
+  local cmd,arg=instr[1],instr[2]
+  if cmd=="noop" then _instr_noop(proc)
+  elseif cmd=="push" then _instr_push(proc,arg)
+  elseif cmd=="add" then _instr_add(proc)
+  elseif cmd=="sub" then _instr_sub(proc)
+  elseif cmd=="mul" then _instr_mul(proc)
+  elseif cmd=="div" then _instr_div(proc)
+  elseif cmd=="mod" then _instr_mod(proc)
+  elseif cmd=="print" then _instr_print(proc)
+  elseif cmd=="dup" then _instr_dup(proc)
+  elseif cmd=="swap" then _instr_swap(proc) end
+end
+
+local function _sched_tick()
+  _CNT=_CNT+1
+  for i=1,#_PROCS do
+    if _PROCS[i].state~="TERMINATED" then _exec(_PROCS[i]) end
+  end
+end
+
+for t=1,500 do _sched_tick() end
+
+local function _nested_calc(depth)
+  if depth<=0 then return _rand(0,100) end
+  local r=_nested_calc(depth-1)+_nested_calc(depth-1)*_rand(0,1)
+  if r>100 then r=r%100 end
+  return r
+end
+
+for i=1,200 do _TMP=_TMP+_nested_calc(5) end
+
+local function _deep_loop()
+  for a=1,50 do
+    for b=1,50 do
+      for c=1,20 do
+        _BUF[a*b%c+1]=_rand(0,1000)
+        _TMP=_TMP+_BUF[a*b%c+1]*_rand(0,1)
+      end
+    end
+  end
+end
+
+_deep_loop()
+
+for i=1,100 do
+  _PROCS[_RNG(1,#_PROCS)].pc=_RNG(1,50)
+end
+
+local function _messy_func(tbl)
+  local res=0
+  for k,v in pairs(tbl) do
+    if type(v)=="number" then
+      res=res+v*_rand(0.5,2)
+    elseif type(v)=="table" then
+      res=res+_messy_func(v)
+    end
+  end
+  return res
+end
+
+_TMP=_messy_func(_PROCS)
+
+for i=1,50 do
+  local idx=_RNG(1,#_PROCS)
+  _PROCS[idx].stack[#_PROCS[idx].stack+1]=_TMP%1000
+  _TMP=_TMP+_PROCS[idx].stack[#_PROCS[idx].stack]*_rand(0,1)
+end
+
+local function _process_shuffle()
+  for i=1,#_PROCS do
+    local p=_RNG(1,#_PROCS)
+    local q=_RNG(1,#_PROCS)
+    _PROCS[p],_PROCS[q]=_PROCS[q],_PROCS[p]
+  end
+end
+
+_process_shuffle()
+
+for t=1,500 do _sched_tick() end
+for i=1,500 do _deep_loop() end
+for i=1,100 do _process_shuffle() end
+
+for t=1,500 do
+  for i=1,#_PROCS do
+    if _PROCS[i].state~="TERMINATED" then _exec(_PROCS[i]) end
+  end
+end
+
+for i=1,100 do
+  _BUF[i]=_nested_calc(6)
+end
+
+_TMP=_messy_func(_BUF)
+
+for i=1,200 do
+  _PROCS[_RNG(1,#_PROCS)].stack[#_PROCS[_RNG(1,#_PROCS)].stack+1]=_TMP%500
+end
+
+return {_PROCS,_STACKS,_MEM,_BUF,_TMP}
