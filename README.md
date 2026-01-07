@@ -29,3 +29,11 @@ A Lua-based script designed for use with a Lua executor. This project focuses on
 - **Lua**
 
 ## 📂 Project Structure
+
+## ⚠️ Disclaimer
+
+This project is provided for **educational purposes only**. Use responsibly and in accordance with the terms of service of the platform you are running it on. The author is not responsible for any misuse.
+
+## 📄 License
+
+This project is licensed under the **MIT License**.
