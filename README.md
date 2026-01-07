@@ -1,4 +1,4 @@
-# Evade
+# Project SalBal
 
 A Lua-based script designed for use with a Lua executor. This project focuses on simplicity and ease of use, allowing users to quickly run the script by pasting it into their executor.
 
