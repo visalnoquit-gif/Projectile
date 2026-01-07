@@ -705,7 +705,6 @@ for i=1,250 do
   _PROC4[idx].stack[#_PROC4[idx].stack+1]=_TMP4%5000
 end
 
--- Final messy calculations to push total line count beyond 2000
 for i=1,500 do _multi_loop4() end
 for t=1,500 do _sched4_tick() end
 for i=1,400 do _proc_shuffle4() end
